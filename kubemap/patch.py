@@ -20,7 +20,8 @@ def patch_pod(namespace: str, pod_name: str, pod_ips: str) -> str:
                     "name": container_name,
                     "image": image_name,
                     "command": [
-                        f"/multiport-listener {pod_ips}"
+                        "./multiport-listener",
+                        pod_ips
                     ],
                     "stdin": True,
                     "terminationMessagePolicy": "File",
