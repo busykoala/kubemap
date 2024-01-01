@@ -1,0 +1,36 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ephemeral-containers-role
+rules:
+- apiGroups: [""]
+  resources: ["*"]
+  # resources: ["pods/ephemeralcontainers"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ephemeral-containers-sa
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ephemeral-containers-clusterrolebinding
+subjects:
+- kind: ServiceAccount
+  name: ephemeral-containers-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: ephemeral-containers-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ephemeral-token
+  annotations:
+    kubernetes.io/service-account.name: ephemeral-containers-sa
+type: kubernetes.io/service-account-token
