@@ -4,53 +4,40 @@ import (
     "fmt"
     "net"
     "os"
-    "os/signal"
     "strings"
     "sync"
-    "syscall"
     "time"
 )
 
-func handleConnections(port int) {
+func handleConnections(port int, stopChan <-chan struct{}) {
     listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
     if err != nil {
-        fmt.Printf("Error listening on port %d: %v\n", port, err)
         return
     }
     defer listener.Close()
 
+    go func() {
+        <-stopChan
+        listener.Close()
+    }()
+
     for {
         conn, err := listener.Accept()
         if err != nil {
-            continue
+            break
         }
 
-        fmt.Printf("%s connected on port %d\n", conn.RemoteAddr().String(), port)
+        fmt.Printf("\n")
         conn.Close()
     }
 }
 
-func startListener() {
-    ports := []int{8042} // Define your ports here
-
-    for _, port := range ports {
-        go handleConnections(port)
-    }
-
-    sigs := make(chan os.Signal, 1)
-    signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-    <-sigs
-    fmt.Println("\nShutting down...")
-}
-
 func checkPort(wg *sync.WaitGroup, ip string, port int) {
     defer wg.Done()
-    
+
     address := fmt.Sprintf("%s:%d", ip, port)
     conn, err := net.DialTimeout("tcp", address, 5*time.Second)
     if err != nil {
-        fmt.Printf("Connection to %s failed: %v\n", address, err)
         return
     }
     defer conn.Close()
@@ -69,14 +56,39 @@ func startChecker(ips []string) {
     }
 
     wg.Wait()
-    fmt.Println("\nAll checks complete. Shutting down...")
 }
 
 func main() {
     if len(os.Args) > 1 {
+        // Start listener
+        stopChan := make(chan struct{})
+        doneChan := make(chan struct{}) // Channel to signal completion
+        ports := []int{8042} // Ports to listen/check
+
+        for _, port := range ports {
+            go handleConnections(port, stopChan)
+        }
+
+        // Signal to close the listener
+        go func() {
+            <-stopChan
+            close(doneChan)
+        }()
+
+        // Run checker after 20 seconds
         ips := strings.Split(os.Args[1], ";")
-        startChecker(ips)
+        time.AfterFunc(20*time.Second, func() {
+            startChecker(ips)
+        })
+
+        // Stop listener after 100 seconds
+        time.AfterFunc(100*time.Second, func() {
+            close(stopChan)
+        })
+
+        // Wait for the listener to finish shutting down
+        <-doneChan
     } else {
-        startListener()
+        fmt.Println("No IPs provided. Exiting...")
     }
 }

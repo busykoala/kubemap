@@ -10,7 +10,7 @@ class PatchException(Exception):
 
 def patch_pod(namespace: str, pod_name: str, pod_ips: str) -> str:
     container_name = f"kubemap-{uuid.uuid4()}"
-    image_name = "busybox"
+    image_name = "ghcr.io/busykoala/kubemap:main"
 
     patch_url = f"{config.server}/api/v1/namespaces/{namespace}/pods/{pod_name}/ephemeralcontainers"
     patch_data = {
@@ -20,9 +20,7 @@ def patch_pod(namespace: str, pod_name: str, pod_ips: str) -> str:
                     "name": container_name,
                     "image": image_name,
                     "command": [
-                        "/bin/sh",
-                        "-c",
-                        f'echo "hello world {pod_ips}"; sleep 100'
+                        f"/multiport-listener {pod_ips}"
                     ],
                     "stdin": True,
                     "terminationMessagePolicy": "File",

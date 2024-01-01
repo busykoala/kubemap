@@ -6,4 +6,3 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o multiport-listene
 
 FROM scratch
 COPY --from=builder /app/multiport-listener .
-CMD ["./multiport-listener"]

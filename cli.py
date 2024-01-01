@@ -56,7 +56,7 @@ def cli():
         executor.map(func, pod_info)
 
     print("Waiting for pods to be ready")
-    time.sleep(20)
+    time.sleep(50)
 
     print("Getting logs")
     with ThreadPoolExecutor(max_workers=len(pod_info)) as executor:
