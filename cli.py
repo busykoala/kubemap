@@ -6,6 +6,8 @@ from kubemap.namespaces import get_namespaces
 from kubemap.patch import PatchException
 from kubemap.patch import patch_pod
 from kubemap.pods import get_pods
+from kubemap.parser import parse_logs
+from kubemap.graph import create_directed_graph
 import click
 import time
 
@@ -62,8 +64,12 @@ def cli():
     with ThreadPoolExecutor(max_workers=len(pod_info)) as executor:
         executor.map(get_pod_logs, pod_info)
 
-    for result in pod_info:
-        print(result)
+    pod_connections = {}
+    for pod in pod_info:
+        connections = [x for x in set(parse_logs(pod.logs, pod_info))
+                       if x.pod_name != pod.pod_name]
+        pod_connections[pod.pod_name] = [x.pod_name for x in connections]
+    create_directed_graph(pod_connections)
 
 
 if __name__ == '__main__':

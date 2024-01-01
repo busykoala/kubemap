@@ -10,6 +10,8 @@ python = "^3.11"
 kubernetes = "^28.1.0"
 requests = "^2.31.0"
 click = "^8.1.7"
+networkx = "^3.2.1"
+matplotlib = "^3.8.2"
 
 
 [build-system]
