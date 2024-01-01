@@ -69,7 +69,7 @@ def cli():
         connections = [x for x in set(parse_logs(pod.logs, pod_info))
                        if x.pod_name != pod.pod_name]
         pod_connections[pod.pod_name] = [x.pod_name for x in connections]
-    create_directed_graph(pod_connections)
+    create_directed_graph(pod_connections, pod_info)
 
 
 if __name__ == '__main__':
