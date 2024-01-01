@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import partial
 from kubemap.logs import get_logs
 from kubemap.namespaces import get_namespaces
 from kubemap.patch import PatchException
@@ -13,13 +14,14 @@ import time
 class PodInfo:
     namespace: str
     pod_name: str
+    pod_ip: str
     patch_container_name: str = ""
     logs: str = ""
 
 
-def process_pod(pod):
+def process_pod(pod: PodInfo, pod_ips: str):
     try:
-        pod.patch_container_name = patch_pod(pod.namespace, pod.pod_name)
+        pod.patch_container_name = patch_pod(pod.namespace, pod.pod_name, pod_ips)
     except PatchException:
         pod.logs = "patch failed"
 
@@ -42,13 +44,16 @@ def cli():
             pod_info.append(
                 PodInfo(
                     namespace=namespace,
-                    pod_name=pod
+                    pod_ip=pod.ip,
+                    pod_name=pod.name
                 )
             )
+    pod_ips = ';'.join([pod.pod_ip for pod in pod_info])
 
     print("Patching pods")
     with ThreadPoolExecutor(max_workers=len(pod_info)) as executor:
-        executor.map(process_pod, pod_info)
+        func = partial(process_pod, pod_ips=pod_ips)
+        executor.map(func, pod_info)
 
     print("Waiting for pods to be ready")
     time.sleep(20)
