@@ -1,24 +1,15 @@
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from functools import partial
+from kubemap.graph import create_directed_graph
 from kubemap.logs import get_logs
 from kubemap.namespaces import get_namespaces
+from kubemap.parser import parse_logs
 from kubemap.patch import PatchException
 from kubemap.patch import patch_pod
+from kubemap.pod_info import PodInfo
 from kubemap.pods import get_pods
-from kubemap.parser import parse_logs
-from kubemap.graph import create_directed_graph
 import click
 import time
-
-
-@dataclass
-class PodInfo:
-    namespace: str
-    pod_name: str
-    pod_ip: str
-    patch_container_name: str = ""
-    logs: str = ""
 
 
 def process_pod(pod: PodInfo, pod_ips: str):
@@ -58,18 +49,18 @@ def cli():
         executor.map(func, pod_info)
 
     print("Waiting for pods to be ready")
-    time.sleep(50)
+    time.sleep(40)
 
     print("Getting logs")
     with ThreadPoolExecutor(max_workers=len(pod_info)) as executor:
         executor.map(get_pod_logs, pod_info)
 
-    pod_connections = {}
     for pod in pod_info:
         connections = [x for x in set(parse_logs(pod.logs, pod_info))
                        if x.pod_name != pod.pod_name]
-        pod_connections[pod.pod_name] = [x.pod_name for x in connections]
-    create_directed_graph(pod_connections, pod_info)
+        pod.connections = [x.pod_name for x in connections]
+
+    create_directed_graph(pod_info)
 
 
 if __name__ == '__main__':

@@ -1,44 +1,64 @@
+from kubemap.pod_info import PodInfo
 import matplotlib.pyplot as plt
 import networkx as nx
-import matplotlib.patches as patches
+from typing import List
 
 
-def create_directed_graph(pod_connections, pod_info):
-    # Create a directed graph from the connections data
-    DG = nx.DiGraph()
-    for pod, connections in pod_connections.items():
-        for conn in connections:
-            DG.add_edge(pod, conn)
+def calculate_bubble(ns_nodes, pos, padding=0.3):
+    x_values, y_values = zip(*[pos[node] for node in ns_nodes])
+    min_x, max_x = min(x_values), max(x_values)
+    min_y, max_y = min(y_values), max(y_values)
+    center = ((min_x + max_x) / 2, (min_y + max_y) / 2)
+    radius = max(max_x - min_x, max_y - min_y) / 2 + padding
+    return center, radius
 
-    # Layout
-    pos = nx.spring_layout(DG)
 
-    # Set margins for the plot
-    plt.figure(figsize=(15, 10))
-    plt.margins(0.1)
-
-    # Draw the graph
-    nx.draw(DG, pos, with_labels=True, node_color='lightblue', node_size=3000, edge_color='gray', arrowstyle='-|>', arrowsize=15, font_size=12)
-
-    # Group nodes by namespace and draw boxes
-    namespaces = {pod.namespace: [] for pod in pod_info}
+def create_directed_graph(pod_info: List[PodInfo]):
+    G = nx.DiGraph()
     for pod in pod_info:
-        namespaces[pod.namespace].append(pod.pod_name)
-
-    for namespace, nodes in namespaces.items():
-        node_positions = [pos[node] for node in nodes if node in pos]
-        if not node_positions:  # skip if no positions (no nodes)
-            continue
-
-        xs, ys = zip(*node_positions)
-        min_x, max_x, min_y, max_y = min(xs), max(xs), min(ys), max(ys)
-        width, height = max_x - min_x + 0.2, max_y - min_y + 0.2
-        rect = patches.Rectangle((min_x - 0.1, min_y - 0.1), width, height, linewidth=2, edgecolor='black', facecolor='none')
-        plt.gca().add_patch(rect)
-        plt.text(min_x, max_y + 0.1, namespace, horizontalalignment='left', size='medium', color='black', weight='semibold')
-
-    # Adjust layout to fit all labels and boxes
-    plt.tight_layout()
-
-    # Save and show the plot
-    plt.savefig('graph.png')
+        G.add_node(pod.pod_name, ns=pod.namespace)
+        for connection in pod.connections:
+            G.add_edge(pod.pod_name, connection)
+    pos = nx.spring_layout(G, k=3, iterations=50)
+    namespace_offset = {
+        ns: i * 3 for i, ns
+        in enumerate(set(pod.namespace for pod in pod_info))
+    }
+    for node in G.nodes():
+        ns = G.nodes[node]['ns']
+        pos[node] = (pos[node][0] + namespace_offset[ns], pos[node][1])
+    plt.figure(figsize=(20, 15))
+    for ns in set(pod.namespace for pod in pod_info):
+        ns_nodes = [pod.pod_name for pod in pod_info if pod.namespace == ns]
+        color = plt.cm.jet(0.5 + 0.5 * hash(ns) / 2**64)
+        nx.draw_networkx_nodes(
+            G,
+            pos,
+            nodelist=ns_nodes,
+            node_color=[color for _ in ns_nodes],
+            label=ns,
+            node_size=200,
+        )
+        center, radius = calculate_bubble(ns_nodes, pos)
+        ellipse = plt.Circle(
+            center,
+            radius,
+            color=color,
+            fill=False,
+            linestyle='--',
+            linewidth=2
+        )
+        plt.gca().add_patch(ellipse)
+    nx.draw_networkx_edges(
+        G, pos, arrowstyle='->', arrowsize=20,
+        connectionstyle='arc3, rad=0.1',
+        edge_color='lightskyblue',
+    )
+    for node, (x, y) in pos.items():
+        plt.text(x, y, node, fontsize=10, ha='right', va='center')
+    plt.xlim(min(x for x, y in pos.values()) - 1, max(x for x, y in pos.values()) + 1)
+    plt.ylim(min(y for x, y in pos.values()) - 1, max(y for x, y in pos.values()) + 1)
+    plt.legend(scatterpoints=1)
+    plt.title("Pod network connections by namespace", fontsize=15, fontweight='bold')
+    plt.axis('off')
+    plt.savefig("graph.png", bbox_inches='tight')
