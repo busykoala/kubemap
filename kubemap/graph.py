@@ -51,7 +51,7 @@ def create_directed_graph(pod_info: List[PodInfo]):
         plt.gca().add_patch(ellipse)
     nx.draw_networkx_edges(
         G, pos, arrowstyle='->', arrowsize=20,
-        connectionstyle='arc3, rad=0.1',
+        connectionstyle='arc3, rad=0.5',
         edge_color='lightskyblue',
     )
     for node, (x, y) in pos.items():
