@@ -60,7 +60,10 @@ of maintaining a respectful and constructive dialogue.
 - Collect pod data by namespace.
 - Attempt to patch each pod with `ghcr.io/busykoala/kubemap:main` as an
   additional ephemeral container (`./handler/Dockerfile`).
-- Retrieve logs from the ephemeral containers.
+  - Container starts a listener on port 8042
+  - After some time it checks connections to every other containers IP
+  - It logs successful connection to stdout.
+- Retrieve the stdout logs from the ephemeral containers.
 - Analyze and visualize connections logged by these containers.
 
 **Commands for local development:**
